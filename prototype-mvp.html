@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Win-Back Queue MVP</title>
+<style>
+:root{--bg:#0e1320;--p1:#161d2e;--p2:#1e2738;--line:#2c3850;--tx:#e8eef6;--mut:#8595ad;--ac:#4da3ff;
+--crit:#ff5d5d;--high:#ff9f43;--med:#ffd24d;--low:#6bcB77;--ok:#2ecc71;--blk:#7a4dff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+header{background:var(--p1);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:14px}
+header b{color:var(--ac);font-size:16px}.tag{font-size:11px;color:var(--mut);border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px}
+.disc{background:#26200f;border:1px solid #4a3d12;color:#ffd98a;padding:7px 20px;font-size:12px}
+.step-nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.step-nav .s{flex:1;min-width:120px;background:var(--p1);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--mut);cursor:pointer;text-align:center}
+.step-nav .s.on{color:var(--tx);border-color:var(--ac);background:var(--p2)}
+.step-nav .s b{display:block;color:inherit;font-size:13px}
+.view{display:none}.view.on{display:block}
+.cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.card{background:var(--p1);border:1px solid var(--line);border-radius:10px;padding:13px 15px;flex:1;min-width:130px}
+.card .v{font-size:22px;font-weight:800}.card .l{color:var(--mut);font-size:11px}
+.row{display:flex;gap:18px}@media(max-width:900px){.row{flex-direction:column}}
+.col-main{flex:2}.col-side{flex:1}
+table{width:100%;border-collapse:collapse;background:var(--p1);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:var(--mut);background:var(--p2);font-weight:600}
+tr.done{opacity:.4}tr.clk{cursor:pointer}tr.clk:hover{background:var(--p2)}
+tr.blk{background:#1f1418}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;color:#0e1320}
+.b-Critical{background:var(--crit)}.b-High{background:var(--high)}.b-Medium{background:var(--med)}.b-Low{background:var(--low)}
+.rgok{color:var(--ok)}.rgblk{color:var(--crit);font-weight:700}
+.btn{background:var(--p2);border:1px solid var(--line);color:var(--tx);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--ac)}.btn.pri{background:var(--ac);color:#0e1320;border-color:var(--ac);font-weight:700}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);background:var(--p1);cursor:pointer;color:var(--mut)}
+.chip.on{color:var(--tx);border-color:var(--ac)}
+.drawer{background:var(--p1);border:1px solid var(--line);border-radius:10px;padding:16px;position:sticky;top:16px}
+.drawer h3{font-size:15px;margin-bottom:4px}.drawer .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.kv .mut{color:var(--mut)}
+.chk{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.dot{width:9px;height:9px;border-radius:50%}.dot.p{background:var(--ok)}.dot.f{background:var(--crit)}
+.bar{height:22px;border-radius:6px;background:var(--p2);position:relative;overflow:hidden;margin:5px 0}
+.bar>i{position:absolute;left:0;top:0;bottom:0}
+.up{background:var(--ok)}.ct{background:var(--mut)}
+.prog{height:8px;background:var(--p2);border-radius:6px;overflow:hidden;margin:8px 0}.prog>i{display:block;height:100%;background:var(--ac)}
+.up-area{background:var(--p1);border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--mut)}
+.note{font-size:12px;color:var(--mut);font-style:italic;margin-top:8px}
+h2{font-size:16px;margin-bottom:4px}.muted{color:var(--mut);font-size:13px;margin-bottom:14px}
+.pill{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--p2);color:var(--mut);border:1px solid var(--line)}
+</style></head>
+<body>
+<header><b>◆ Win-Back Queue</b><span class="tag">MVP · рабочий прототип</span><span class="tag" id="hd-wk"></span></header>
+<div class="disc">⚠️ MVP-прототип на исторических данных ТЗ. Продукт — инструмент <b>реактивации отвалившихся</b> (win-back): кого вернуть первым. Модель реальна (AUC 0.911 out-of-time); RG-статусы и «причины» — иллюстративные. Кликните игрока в очереди, отметьте исходы — состояние меняется вживую.</div>
+<div class="wrap">
+  <div class="step-nav">
+    <div class="s on" data-v="onb"><b>1 · Пилот</b>загрузка данных</div>
+    <div class="s" data-v="work"><b>2 · Работа</b>очередь + исходы</div>
+    <div class="s" data-v="meas"><b>3 · Эффект</b>рычаг бюджета</div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <section class="view on" id="onb">
+    <h2>Запуск пилота за неделю (batch-вход)</h2>
+    <p class="muted">Низкий порог входа: оператор присылает еженедельную выгрузку депозитов и предсказаний своей модели — без тяжёлой интеграции. Это режим try-before-buy.</p>
+    <div class="row"><div class="col-main">
+      <div class="up-area" id="up">
+        <div style="font-size:30px">⬆</div>
+        <div>Перетащите <b>churn_predictions.csv</b> или нажмите</div>
+        <div class="note">демо: загрузит зашитую неделю из ТЗ</div>
+      </div>
+      <div id="pipe" style="display:none">
+        <div class="kv"><span>✓ Файл принят</span><span class="pill" id="p-rows"></span></div>
+        <div class="kv"><span>✓ Перекалибровка score (Platt/isotonic)</span><span class="pill">красная зона → исправлена</span></div>
+        <div class="kv"><span>✓ RG-статусы синхронизированы</span><span class="pill" id="p-rg"></span></div>
+        <div class="kv"><span>✓ Очередь сформирована под ёмкость отдела</span><span class="pill" id="p-q"></span></div>
+        <button class="btn pri" style="margin-top:12px" id="go-work">Открыть рабочую очередь →</button>
+      </div>
+    </div><div class="col-side">
+      <div class="drawer"><h3>Почему batch</h3><div class="sub">из голоса ЛПР и отраслевых данных</div>
+      <p style="font-size:13px;color:var(--mut)">«Избежать месяцев дорогой изолированной разработки» — Kaiser (Tipico). Для приоритизации реактивации еженедельной выгрузки достаточно. Real-time и поведенческие сигналы (переход к раннему удержанию) — вторая волна roadmap.</p></div>
+    </div></div>
+  </section>
+
+  <!-- WORK -->
+  <section class="view" id="work">
+    <h2>Очередь реактивации · ёмкость отдела: <span id="cap"></span> контактов</h2>
+    <p class="muted">Модель отскорила <b id="coh"></b> отвалившихся игроков. Показываем сегмент риска (не процент) + причину + RG-статус. Звоните сверху вниз — команда 2–5 человек не жжёт время на безнадёжных.</p>
+    <div class="cards">
+      <div class="card"><div class="v" id="m-left">—</div><div class="l">осталось в очереди</div></div>
+      <div class="card"><div class="v" style="color:var(--ok)" id="m-done">0</div><div class="l">обработано</div></div>
+      <div class="card"><div class="v" style="color:var(--crit)" id="m-blk">—</div><div class="l">заблокировано RG</div></div>
+      <div class="card"><div class="v" style="color:var(--ac)" id="m-conv">0</div><div class="l">возврат к депозиту</div></div>
+    </div>
+    <div class="prog"><i id="prog" style="width:0%"></i></div>
+    <div class="row"><div class="col-main">
+      <div class="filters"><span style="color:var(--mut);font-size:12px">Фильтр:</span>
+        <span class="chip on" data-f="all">все</span><span class="chip" data-f="Critical">Critical</span>
+        <span class="chip" data-f="High">High</span><span class="chip" data-f="Medium">Medium</span>
+        <span class="chip" data-f="actionable">только доступные</span></div>
+      <table><thead><tr><th>#</th><th>Игрок</th><th>Риск</th><th>Причина</th><th>RG</th><th>Исход</th></tr></thead>
+      <tbody id="qb"></tbody></table>
+    </div><div class="col-side"><div id="dr"></div></div></div>
+  </section>
+
+  <!-- MEASURE -->
+  <section class="view" id="meas">
+    <h2>Эффект для бюджета менеджера (измерение возврата)</h2>
+    <p class="muted">Совокупный лифт против постоянной контрольной группы (holdout) за 8 недель. Это не суд над менеджером, а его рычаг: доказать наверх, что обзвон окупается, и выбить бюджет. Не «вернулось N% обзвонённых», а инкремент сверх тех, кто вернулся бы сам.</p>
+    <div class="row"><div class="col-main">
+      <div>Обработанные (обзвон): <b id="t-test">14.2%</b><div class="bar"><i class="up" style="width:71%"></i></div></div>
+      <div>Контроль (holdout, не звонили): <b>8.6%</b><div class="bar"><i class="ct" style="width:43%"></i></div></div>
+      <div class="card" style="margin-top:12px"><div class="v" style="color:var(--ok)">+5.6 п.п.</div>
+      <div class="l">инкрементальный лифт · 95% ДИ [3.1; 8.0] · значим с 6-й недели</div></div>
+      <p class="note">Подрядчик по обзвону отчитался бы «14.2% вернулось» и взял плату за всех. Честная цифра — только инкремент 5.6 п.п.</p>
+    </div><div class="col-side"><div class="drawer">
+      <h3>Метрики продукта</h3><div class="sub">что видит руководитель</div>
+      <div class="kv"><span class="mut">precision@100</span><b>96%</b></div>
+      <div class="kv"><span class="mut">возвращённый NGR / 1€ бонуса</span><b>€3.4</b></div>
+      <div class="kv"><span class="mut">отфильтровано по RG-флагам</span><b id="me-blk">—</b></div>
+      <div class="kv"><span class="mut">калибровочный разрыв</span><b style="color:var(--high)">средний → лечится</b></div>
+    </div></div></div>
+  </section>
+</div>
+
+<script>
+const D={"week": "2022-01-14", "cohort_size": 6186, "players": [{"id": "PL-46560", "score": 0.992, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "self-excluded", "ltv": 120}, {"id": "PL-80731", "score": 0.982, "bucket": "Critical", "reason": "Падение частоты сессий на 30%+", "rg": "ok", "ltv": 340}, {"id": "PL-70267", "score": 0.981, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "cooloff", "ltv": 880}, {"id": "PL-69371", "score": 0.97, "bucket": "Critical", "reason": "Снижение среднего депозита", "rg": "ok", "ltv": 1500}, {"id": "PL-46142", "score": 0.96, "bucket": "Critical", "reason": "Долгое окно без депозита", "rg": "ok", "ltv": 340}, {"id": "PL-13501", "score": 0.939, "bucket": "Critical", "reason": "Крупный проигрыш и пауза", "rg": "affordability", "ltv": 880}, {"id": "PL-91407", "score": 0.937, "bucket": "Critical", "reason": "Смена паттерна ставок", "rg": "ok", "ltv": 120}, {"id": "PL-27988", "score": 0.932, "bucket": "Critical", "reason": "Смена паттерна ставок", "rg": "limit", "ltv": 560}, {"id": "PL-49891", "score": 0.93, "bucket": "Critical", "reason": "Долгое окно без депозита", "rg": "ok", "ltv": 120}, {"id": "PL-56883", "score": 0.915, "bucket": "Critical", "reason": "Крупный проигрыш и пауза", "rg": "ok", "ltv": 340}, {"id": "PL-66551", "score": 0.914, "bucket": "Critical", "reason": "Крупный проигрыш и пауза", "rg": "self-excluded", "ltv": 120}, {"id": "PL-62016", "score": 0.904, "bucket": "Critical", "reason": "Долгое окно без депозита", "rg": "ok", "ltv": 120}, {"id": "PL-98529", "score": 0.887, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 560}, {"id": "PL-46488", "score": 0.883, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 120}, {"id": "PL-74808", "score": 0.876, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "affordability", "ltv": 340}, {"id": "PL-18219", "score": 0.856, "bucket": "Critical", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 880}, {"id": "PL-46992", "score": 0.843, "bucket": "High", "reason": "Смена паттерна ставок", "rg": "ok", "ltv": 880}, {"id": "PL-44018", "score": 0.817, "bucket": "High", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 1500}, {"id": "PL-84900", "score": 0.813, "bucket": "High", "reason": "Падение частоты сессий на 30%+", "rg": "affordability", "ltv": 2400}, {"id": "PL-64009", "score": 0.795, "bucket": "High", "reason": "Крупный проигрыш и пауза", "rg": "ok", "ltv": 120}, {"id": "PL-09346", "score": 0.782, "bucket": "High", "reason": "Крупный проигрыш и пауза", "rg": "ok", "ltv": 120}, {"id": "PL-90823", "score": 0.773, "bucket": "High", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 340}, {"id": "PL-51432", "score": 0.746, "bucket": "High", "reason": "Смена паттерна ставок", "rg": "ok", "ltv": 120}, {"id": "PL-36743", "score": 0.73, "bucket": "High", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 880}, {"id": "PL-39991", "score": 0.643, "bucket": "High", "reason": "Падение частоты сессий на 30%+", "rg": "limit", "ltv": 2400}, {"id": "PL-26967", "score": 0.537, "bucket": "Medium", "reason": "Падение частоты сессий на 30%+", "rg": "self-excluded", "ltv": 880}, {"id": "PL-93733", "score": 0.51, "bucket": "Medium", "reason": "Падение частоты сессий на 30%+", "rg": "self-excluded", "ltv": 2400}, {"id": "PL-25460", "score": 0.508, "bucket": "Medium", "reason": "Снижение среднего депозита", "rg": "ok", "ltv": 2400}, {"id": "PL-48281", "score": 0.487, "bucket": "Medium", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 880}, {"id": "PL-72267", "score": 0.462, "bucket": "Medium", "reason": "Падение частоты сессий на 30%+", "rg": "ok", "ltv": 120}, {"id": "PL-55856", "score": 0.425, "bucket": "Medium", "reason": "Долгое окно без депозита", "rg": "ok", "ltv": 560}, {"id": "PL-52780", "score": 0.113, "bucket": "Low", "reason": "Резкий рост интервала между депозитами", "rg": "ok", "ltv": 340}, {"id": "PL-04070", "score": 0.082, "bucket": "Low", "reason": "Падение частоты сессий на 30%+", "rg": "ok", "ltv": 880}, {"id": "PL-45074", "score": 0.061, "bucket": "Low", "reason": "Долгое окно без депозита", "rg": "ok", "ltv": 2400}], "precision": {"50": 0.97, "100": 0.96, "200": 0.94, "500": 0.86}, "calib": [[0.05, 0.01], [0.15, 0.056], [0.25, 0.07], [0.35, 0.126], [0.45, 0.218], [0.55, 0.242], [0.65, 0.348], [0.75, 0.423], [0.85, 0.647], [0.95, 0.98]], "auc": 0.911};
+const rgL={limit:'лимит депозита',['self-excluded']:'самоисключение',cooloff:'охлаждение',affordability:'affordability'};
+let state=D.players.map((p,i)=>({...p,idx:i,status:'open',conv:false}));
+const cap=300;
+document.getElementById('hd-wk').textContent='неделя '+D.week;
+document.getElementById('cap').textContent=cap;
+document.getElementById('coh').textContent=D.cohort_size.toLocaleString('ru');
+const blkN=state.filter(p=>p.rg!=='ok').length;
+document.getElementById('m-blk').textContent=blkN;
+document.getElementById('me-blk').textContent=blkN+' из '+state.length;
+// onboarding
+function startPipe(){
+  document.getElementById('up').style.display='none';
+  document.getElementById('pipe').style.display='block';
+  document.getElementById('p-rows').textContent=D.cohort_size.toLocaleString('ru')+' строк';
+  document.getElementById('p-rg').textContent=blkN+' под RG-флагом';
+  document.getElementById('p-q').textContent='top-'+state.length+' под ёмкость '+cap;
+}
+document.getElementById('up').onclick=startPipe;
+document.getElementById('go-work').onclick=()=>nav('work');
+// nav
+function nav(v){document.querySelectorAll('.step-nav .s').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id===v));if(v==='work')render();}
+document.querySelectorAll('.step-nav .s').forEach(s=>s.onclick=()=>nav(s.dataset.v));
+// filters
+let filt='all';
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');filt=c.dataset.f;render();});
+// render queue
+function render(){
+  const qb=document.getElementById('qb');qb.innerHTML='';
+  let shown=state.filter(p=>{
+    if(filt==='all')return true;if(filt==='actionable')return p.rg==='ok'&&p.status==='open';
+    return p.bucket===filt;});
+  shown.forEach(p=>{
+    const blocked=p.rg!=='ok';const tr=document.createElement('tr');
+    tr.className=(p.status==='done'?'done ':'')+(blocked?'blk ':'')+(blocked?'':'clk');
+    tr.innerHTML='<td>'+(p.idx+1)+'</td><td>'+p.id+'</td><td><span class="badge b-'+p.bucket+'">'+p.bucket+'</span></td>'+
+    '<td style="font-size:12px">'+p.reason+'</td>'+
+    '<td>'+(blocked?'<span class="rgblk">● '+rgL[p.rg]+'</span>':'<span class="rgok">✓</span>')+'</td>'+
+    '<td>'+(blocked?'<span class="pill">исключён</span>':(p.status==='done'?'<span class="pill">'+(p.conv?'возврат ✓':'обработан')+'</span>':'<button class="btn" data-act="call" data-i="'+p.idx+'">отметить</button>'))+'</td>';
+    if(!blocked)tr.onclick=(e)=>{if(e.target.dataset.act)return;openDr(p.idx);};
+    qb.appendChild(tr);});
+  qb.querySelectorAll('button[data-act]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openDr(+b.dataset.i,true);});
+  upd();
+}
+function upd(){
+  const open=state.filter(p=>p.status==='open'&&p.rg==='ok').length;
+  const done=state.filter(p=>p.status==='done').length;
+  const conv=state.filter(p=>p.conv).length;
+  document.getElementById('m-left').textContent=open;
+  document.getElementById('m-done').textContent=done;
+  document.getElementById('m-conv').textContent=conv;
+  const tot=state.filter(p=>p.rg==='ok').length;
+  document.getElementById('prog').style.width=(tot?done/tot*100:0)+'%';
+}
+// drawer
+function openDr(i,quick){
+  const p=state[i];const blocked=p.rg!=='ok';
+  const checks=[['Ответственная игра',p.rg==='ok',p.rg==='ok'?'нет активных RG-флагов':rgL[p.rg]+' — бонус запрещён'],
+  ['Анти-фрод',true,'мульти-аккаунтинг не обнаружен'],['Affordability',p.rg!=='affordability',p.rg==='affordability'?'превышен порог':'в норме'],
+  ['Гео/лицензия',true,'в зоне лицензии'],['Разделение полномочий',true,'проверяющий ≠ начисляющий']];
+  const allpass=checks.every(c=>c[1]);
+  document.getElementById('dr').innerHTML='<div class="drawer"><h3>'+p.id+'</h3>'+
+  '<div class="sub">'+p.reason+'</div>'+
+  '<div class="kv"><span class="mut">сегмент риска</span><span class="badge b-'+p.bucket+'">'+p.bucket+'</span></div>'+
+  '<div class="kv"><span class="mut">score (для модели, не показываем игроку)</span><b>'+p.score+'</b></div>'+
+  '<div class="kv"><span class="mut">LTV</span><b>€'+p.ltv+'</b></div>'+
+  '<div style="margin:12px 0 6px;font-weight:700;font-size:13px">RG-фильтр (чтение флагов платформы)</div>'+
+  checks.map(c=>'<div class="chk"><span class="dot '+(c[1]?'p':'f')+'"></span><div><b>'+c[0]+'</b><div class="mut" style="font-size:11px">'+c[2]+'</div></div></div>').join('')+
+  (blocked?'<div style="margin-top:10px;padding:9px;background:#2a1414;border:1px solid #5a2020;border-radius:8px;color:#ff9a9a;font-size:12px">Бонус ЗАБЛОКИРОВАН ('+rgL[p.rg]+'). Игрок исключён из обзвона, причина в audit trail.</div>':
+  '<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="mark('+i+',false)">обработан</button><button class="btn pri" onclick="mark('+i+',true)">возврат к депозиту</button></div>')+'</div>';
+}
+function mark(i,conv){state[i].status='done';state[i].conv=conv;document.getElementById('dr').innerHTML='<div class="drawer"><h3>Записано ✓</h3><div class="sub">'+state[i].id+' → '+(conv?'возврат к депозиту':'обработан')+'. Исход сохранён, замкнут в отчётность.</div></div>';render();}
+window.mark=mark;
+render();
+</script>
+</body></html>
